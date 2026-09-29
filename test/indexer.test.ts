@@ -80,6 +80,11 @@ describe("index:faq", () => {
     expect(exitCodeFor(r)).toBe(1);
   });
 
+  it("空の ids は全件処理にせずエラーにする", async () => {
+    await expect(runIndex(cfg, { ...quiet, fetch: mock.fetch, ids: [], force: true })).rejects.toThrow();
+    expect(mock.counts).toMatchObject({ kintoneGet: 0, embedding: 0, kintonePut: 0 });
+  });
+
   it("--force は変更がなくても全件再生成する", async () => {
     await mock.preindex(SPEC_ID, DIMS);
     const r = await runIndex(cfg, { ...quiet, fetch: mock.fetch, force: true });

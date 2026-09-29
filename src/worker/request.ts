@@ -22,8 +22,11 @@ export function isJsonContentType(header: string | null): boolean {
   return header.split(";")[0]!.trim().toLowerCase() === "application/json";
 }
 
-/** 上限付きでボディを読む。上限超過なら null。 */
-export async function readBodyLimited(req: Request, limit: number): Promise<Uint8Array | null> {
+/**
+ * 上限付きでボディを読む。上限超過なら null。
+ * signal が中断されたら読み取りを中止して TimeoutError を投げる（全体期限）。
+ */
+export async function readBodyLimited(req: Request, limit: number, signal?: AbortSignal): Promise<Uint8Array | null> {
   const declared = Number(req.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > limit) {
     await req.body?.cancel();
@@ -31,17 +34,36 @@ export async function readBodyLimited(req: Request, limit: number): Promise<Uint
   }
   if (!req.body) return new Uint8Array(0);
   const reader = req.body.getReader();
+  const timeoutError = () => new DOMException("request body read timed out", "TimeoutError");
+  if (signal?.aborted) {
+    await reader.cancel().catch(() => {});
+    throw timeoutError();
+  }
+  let rejectAborted: (err: unknown) => void = () => {};
+  const aborted = new Promise<never>((_, reject) => {
+    rejectAborted = reject;
+  });
+  aborted.catch(() => {}); // 読み取り完了後に期限が来ても未処理の reject にしない
+  const onAbort = () => {
+    rejectAborted(timeoutError());
+    reader.cancel().catch(() => {});
+  };
+  signal?.addEventListener("abort", onAbort, { once: true });
   const chunks: Uint8Array[] = [];
   let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > limit) {
-      await reader.cancel();
-      return null;
+  try {
+    for (;;) {
+      const { done, value } = await Promise.race([reader.read(), aborted]);
+      if (done) break;
+      total += value.byteLength;
+      if (total > limit) {
+        await reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
     }
-    chunks.push(value);
+  } finally {
+    signal?.removeEventListener("abort", onAbort);
   }
   const out = new Uint8Array(total);
   let off = 0;

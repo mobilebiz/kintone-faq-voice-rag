@@ -98,6 +98,23 @@ describe("kintone fetchAllRecords", () => {
     );
   });
 
+  it("Content-Length がない応答でも、上限を超えた時点で読み取りを打ち切る", async () => {
+    let pulled = 0;
+    const chunk = new TextEncoder().encode("x".repeat(100));
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled++;
+        if (pulled > 1000) controller.close();
+        else controller.enqueue(chunk);
+      },
+    });
+    const f: typeof fetch = async () => new Response(stream, { status: 200 }); // Content-Length なし
+    await expect(fetchAllRecords(cfg, ["answer"], { fetch: f, maxBytes: 1000 })).rejects.toBeInstanceOf(
+      SnapshotTooLargeError,
+    );
+    expect(pulled).toBeLessThan(50); // 全体（100KB）を読み切らない
+  });
+
   it("上流の認証失敗を auth として分類する", async () => {
     const mock = new MockUpstream();
     const err = await fetchAllRecords({ ...cfg, apiToken: "bad" }, ["question"], { fetch: mock.fetch }).catch((e) => e);

@@ -3,7 +3,7 @@ import { MockUpstream } from "../scripts/mock-upstream-core.ts";
 import { SAMPLE_FAQ } from "../scripts/sample-faq.ts";
 import { createApp, type App } from "../src/worker/app.ts";
 import type { Env } from "../src/worker/config.ts";
-import { DIMS, SPEC_ID, searchRequest, testEnv } from "./helpers/env.ts";
+import { API_KEY, DIMS, SPEC_ID, searchRequest, testEnv } from "./helpers/env.ts";
 
 let mock: MockUpstream;
 let app: App;
@@ -211,6 +211,27 @@ describe("異常系の分類", () => {
     expect(Date.now() - t0).toBeLessThan(1_000);
     expect(res.status).toBe(504);
     expect(json.error).toMatchObject({ code: "SEARCH_TIMEOUT", retryable: true });
+  });
+
+  it("ボディ送信が途中で止まっても全体期限で 504 を返す", async () => {
+    const stalled = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"query":'));
+        // close しない = 送信途中で停止
+      },
+    });
+    const req = new Request("https://faq.example.test/v1/faq/search", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${API_KEY}`, "Content-Type": "application/json" },
+      body: stalled,
+      duplex: "half", // Node の fetch 実装でストリームボディを送るために必要
+    });
+    const t0 = Date.now();
+    const res = await app.fetch(req, testEnv({ SEARCH_TIMEOUT_MS: "100" }));
+    expect(Date.now() - t0).toBeLessThan(1_000);
+    expect(res.status).toBe(504);
+    expect(((await res.json()) as any).error.code).toBe("SEARCH_TIMEOUT");
+    expect(mock.counts.embedding).toBe(0);
   });
 
   it("上流個別期限（UPSTREAM_TIMEOUT_MS）でも 504", async () => {

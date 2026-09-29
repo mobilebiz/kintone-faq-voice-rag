@@ -112,6 +112,10 @@ export async function runIndex(cfg: CliConfig, opts: IndexOptions = {}): Promise
   const readFields = ["$revision", f.category, f.question, f.answer, f.embedding, f.embeddingSpec, f.embeddingHash];
   const call = { fetch: opts.fetch };
 
+  if (opts.ids !== undefined && opts.ids.length === 0) {
+    // 空配列を「条件なし＝全件」として扱わない
+    throw new Error("ids is empty; omit it to process all records");
+  }
   const ids = opts.ids?.map((id) => {
     if (!/^\d+$/.test(id)) throw new Error(`invalid record id: ${id}`);
     return String(Number(id));

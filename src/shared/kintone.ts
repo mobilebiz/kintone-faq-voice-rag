@@ -38,6 +38,30 @@ export function kintoneApiUrl(cfg: KintoneConfig, path: string): string {
   return `${base}${prefix}${path}`;
 }
 
+/**
+ * 展開後の本文を逐次読みながらバイト数を数え、上限を超えた時点で読み取りを中止する。
+ * Content-Length がない／圧縮後の長さしか分からない応答でも、上限を超える量をメモリに確保しない。
+ */
+async function readTextLimited(res: Response, maxBytes: number | undefined): Promise<{ text: string; bytes: number }> {
+  if (!res.body) return { text: "", bytes: 0 };
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  let bytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (maxBytes !== undefined && bytes > maxBytes) {
+      await reader.cancel().catch(() => {});
+      throw new SnapshotTooLargeError(bytes, maxBytes);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  text += decoder.decode();
+  return { text, bytes };
+}
+
 async function kintoneRequest(
   cfg: KintoneConfig,
   method: "GET" | "PUT",
@@ -71,15 +95,13 @@ async function kintoneRequest(
   }
 
   let text: string;
+  let bytes: number;
   try {
-    text = await res.text();
+    ({ text, bytes } = await readTextLimited(res, opts.maxBytes));
   } catch (err) {
+    if (err instanceof SnapshotTooLargeError) throw err;
     if (isAbortError(err)) throw new UpstreamError("kintone", "timeout", "kintone response aborted");
     throw new UpstreamError("kintone", "network", "kintone response read failed");
-  }
-  const bytes = new TextEncoder().encode(text).byteLength;
-  if (opts.maxBytes !== undefined && bytes > opts.maxBytes) {
-    throw new SnapshotTooLargeError(bytes, opts.maxBytes);
   }
 
   let json: unknown;

@@ -141,30 +141,7 @@ export function createApp(deps: AppDeps = {}): App {
     if (!isJsonContentType(request.headers.get("content-type"))) {
       return finish(errorResponse(requestId, "UNSUPPORTED_MEDIA_TYPE"), { error_code: "UNSUPPORTED_MEDIA_TYPE" });
     }
-    const raw = await readBodyLimited(request, MAX_BODY_BYTES);
-    if (raw === null) {
-      return finish(errorResponse(requestId, "PAYLOAD_TOO_LARGE"), { error_code: "PAYLOAD_TOO_LARGE" });
-    }
-    let body: unknown;
-    try {
-      body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
-    } catch {
-      return finish(errorResponse(requestId, "INVALID_REQUEST", { message: "JSONを解析できません。" }), {
-        error_code: "INVALID_REQUEST",
-      });
-    }
-    const v = validateSearchBody(body, cfg.defaultLimit, cfg.maxLimit);
-    if (!v.ok) {
-      if (v.requestId) requestId = v.requestId;
-      return finish(errorResponse(requestId, "INVALID_REQUEST", { message: v.message }), {
-        error_code: "INVALID_REQUEST",
-      });
-    }
-    const req = v.value;
-    if (req.requestId) requestId = req.requestId;
-    logEntry.request_id_source = req.requestId ? "client" : "server";
-
-    // ---- 全体期限を共有する ----
+    // ---- 全体期限を共有する（ボディ受信から開始）----
     const deadlineAt = started + cfg.searchTimeoutMs;
     const remaining = () => Math.max(1, deadlineAt - now());
     const deadline = new AbortController();
@@ -178,6 +155,30 @@ export function createApp(deps: AppDeps = {}): App {
     let cacheStatus: CacheStatus = "miss";
 
     try {
+      // ボディ受信も全体期限の内側で行う（送信途中で止まったクライアントを待ち続けない）
+      const raw = await readBodyLimited(request, MAX_BODY_BYTES, deadline.signal);
+      if (raw === null) {
+        return finish(errorResponse(requestId, "PAYLOAD_TOO_LARGE"), { error_code: "PAYLOAD_TOO_LARGE" });
+      }
+      let body: unknown;
+      try {
+        body = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+      } catch {
+        return finish(errorResponse(requestId, "INVALID_REQUEST", { message: "JSONを解析できません。" }), {
+          error_code: "INVALID_REQUEST",
+        });
+      }
+      const v = validateSearchBody(body, cfg.defaultLimit, cfg.maxLimit);
+      if (!v.ok) {
+        if (v.requestId) requestId = v.requestId;
+        return finish(errorResponse(requestId, "INVALID_REQUEST", { message: v.message }), {
+          error_code: "INVALID_REQUEST",
+        });
+      }
+      const req = v.value;
+      if (req.requestId) requestId = req.requestId;
+      logEntry.request_id_source = req.requestId ? "client" : "server";
+
       const key = snapshotKey(cfg);
 
       // 検索文Embedding と FAQ取得を並列に開始する

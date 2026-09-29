@@ -35,9 +35,10 @@ async function main(): Promise<number> {
     console.error("--concurrency は 1〜8 の整数で指定してください");
     return 2;
   }
-  const ids = values.id?.flatMap((v) => v.split(",")).map((v) => v.trim()).filter(Boolean);
-  if (ids?.some((id) => !/^\d+$/.test(id))) {
-    console.error("--id はレコードID（数値）で指定してください");
+  // 空の指定（例: --id "$UNSET_VAR"）を「指定なし＝全件」と取り違えないよう、空要素もエラーにする
+  const ids = values.id?.flatMap((v) => v.split(",")).map((v) => v.trim());
+  if (ids !== undefined && (ids.length === 0 || ids.some((id) => !/^\d+$/.test(id)))) {
+    console.error("--id はレコードID（数値）で指定してください（空の指定はできません）");
     return 2;
   }
 
