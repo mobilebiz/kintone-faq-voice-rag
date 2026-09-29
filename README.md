@@ -6,6 +6,22 @@ kintone の FAQ（アプリ 146：カテゴリ・質問・回答）を Embedding
 - 外部DB・Vectorize・KV は使いません。ベクトルの原本は kintone の文字列（複数行）フィールドです。
 - 今回のスコープは **Postman から REST API で検索できるところまで** です。Vonage／Realtime 連携（仕様 10章のツールアダプター）は含めていません（→「残課題」）。
 
+## 本番環境
+
+| 項目 | 値 |
+|---|---|
+| ベースURL | `https://kintone-faq-search.katsumi.workers.dev` |
+| 検索 | `POST /v1/faq/search`（`Authorization: Bearer <FAQ_SEARCH_API_KEY>` 必須） |
+| 生存確認 | `GET /healthz`（認証不要） |
+
+検索APIキーは通話接続サーバーにだけ渡すサーバー間用のキーで、このリポジトリには含めていません。キーがない、または不正なリクエストは `401 UNAUTHORIZED` になります。
+
+```bash
+curl -s -X POST https://kintone-faq-search.katsumi.workers.dev/v1/faq/search \
+  -H "Authorization: Bearer $FAQ_SEARCH_API_KEY" -H 'Content-Type: application/json' \
+  -d '{"query":"Teamsと連携するのにMicrosoft 365の有料プランは必要？","limit":3}'
+```
+
 ```mermaid
 flowchart LR
     P["Postman / 通話サーバー"] -- "POST /v1/faq/search" --> W["Workers：FAQ検索API"]
