@@ -1,0 +1,206 @@
+openapi: 3.1.0
+info:
+  title: kintone FAQ Search API
+  version: 1.0.0
+  description: |
+    kintone の FAQ を意味検索し、回答生成の根拠（FAQ本文・出典・検索状態）を返すサーバー間API。
+    完成した回答文は返さない（回答生成は通話側 Realtime モデルが行う）。
+    すべての応答に `Cache-Control: no-store` を付与する。CORS は無効。
+servers:
+  - url: https://kintone-faq-search.{account}.workers.dev
+    variables:
+      account:
+        default: your-account
+  - url: http://127.0.0.1:8787
+    description: wrangler dev
+security:
+  - bearerAuth: []
+paths:
+  /v1/faq/search:
+    post:
+      operationId: searchFaq
+      summary: FAQを意味検索する
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+            example:
+              query: ログインのパスワードを忘れたので再設定したい
+              category: アカウント
+              limit: 3
+              request_id: req-example-001
+      responses:
+        "200":
+          description: |
+            検索完了。`matched` / `ambiguous` / `no_match` のいずれか。
+            `no_match` の results は空配列。`ambiguous` は limit=1 でも比較用に上位2件以上を含める。
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+              example:
+                request_id: req-example-001
+                status: matched
+                results:
+                  - id: "42"
+                    category: アカウント
+                    question: パスワードを忘れた場合は？
+                    answer: ログイン画面の「パスワードを忘れた方」から再設定してください。
+                    score: 0.86
+                meta:
+                  cache: hit
+                  snapshot_at: "2026-09-29T02:50:00Z"
+                  embedding_spec: openai/text-embedding-3-small/1536/faq-v1
+                  degraded: false
+                  reason: null
+                  timings_ms: { total: 420, embedding: 390, faq_load: 0, similarity: 2 }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+        "405": { $ref: "#/components/responses/Error" }
+        "413": { $ref: "#/components/responses/Error" }
+        "415": { $ref: "#/components/responses/Error" }
+        "429":
+          description: 本APIのレート制限（APIキー単位、拠点単位の近似）
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "500": { $ref: "#/components/responses/Error" }
+        "502": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+        "504": { $ref: "#/components/responses/Error" }
+  /healthz:
+    get:
+      operationId: healthz
+      summary: プロセスの生存確認のみ（依存先の疎通は確認しない）
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { const: ok }
+                required: [status]
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: FAQ_SEARCH_API_KEY。通話接続サーバーにだけ保存する。
+  responses:
+    Error:
+      description: エラー
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorResponse" }
+  schemas:
+    SearchRequest:
+      type: object
+      additionalProperties: false
+      description: ボディ上限16KiB。未知のフィールドは400。null の任意項目は省略と同じ扱い。
+      required: [query]
+      properties:
+        query:
+          type: string
+          description: trim後 1〜1,000 Unicodeコードポイント
+          minLength: 1
+          maxLength: 1000
+        category:
+          type: [string, "null"]
+          description: 1〜100コードポイント。前後空白除去・NFC正規化後の完全一致。省略時は全カテゴリ
+          minLength: 1
+          maxLength: 100
+        limit:
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 5
+          default: 3
+        request_id:
+          type: [string, "null"]
+          pattern: "^[A-Za-z0-9_-]{1,64}$"
+          description: 未指定時はサーバー生成（UUID）
+    SearchResponse:
+      type: object
+      required: [request_id, status, results, meta]
+      properties:
+        request_id: { type: string }
+        status:
+          type: string
+          enum: [matched, ambiguous, no_match]
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/FaqResult" }
+        meta: { $ref: "#/components/schemas/SearchMeta" }
+    FaqResult:
+      type: object
+      required: [id, category, question, answer, score]
+      properties:
+        id: { type: string, description: kintone レコードID }
+        category: { type: string }
+        question: { type: string }
+        answer: { type: string }
+        score:
+          type: number
+          description: コサイン類似度（小数4桁）。正答確率ではない
+    SearchMeta:
+      type: object
+      required: [cache, snapshot_at, embedding_spec, degraded, reason, timings_ms]
+      properties:
+        cache:
+          type: string
+          enum: [hit, miss, refresh]
+        snapshot_at:
+          type: string
+          format: date-time
+          description: FAQスナップショットの取得完了時刻（UTC）
+        embedding_spec: { type: string }
+        degraded:
+          type: boolean
+          description: 不正・古いベクトルを一部除外して検索した
+        reason:
+          type: [string, "null"]
+          enum: [below_threshold, empty_category, close_scores, null]
+        timings_ms:
+          type: object
+          description: 並列処理のため各値の合計は total と一致しない
+          required: [total, embedding, faq_load, similarity]
+          properties:
+            total: { type: integer }
+            embedding: { type: integer }
+            faq_load: { type: integer }
+            similarity: { type: integer }
+    ErrorResponse:
+      type: object
+      required: [request_id, error]
+      properties:
+        request_id: { type: string }
+        error:
+          type: object
+          required: [code, message, retryable]
+          properties:
+            code:
+              type: string
+              enum:
+                - INVALID_REQUEST        # 400
+                - UNAUTHORIZED           # 401
+                - NOT_FOUND              # 404
+                - METHOD_NOT_ALLOWED     # 405
+                - PAYLOAD_TOO_LARGE      # 413
+                - UNSUPPORTED_MEDIA_TYPE # 415
+                - RATE_LIMITED           # 429
+                - EMBEDDING_FAILED       # 502
+                - KINTONE_FAILED         # 502
+                - INDEX_NOT_READY        # 503 FAQが空、または有効ベクトルが0件
+                - SNAPSHOT_TOO_LARGE     # 503 FAQスナップショットが MAX_SNAPSHOT_BYTES 超過
+                - UPSTREAM_RATE_LIMITED  # 503
+                - SEARCH_TIMEOUT         # 504
+                - INTERNAL_ERROR         # 500 詳細は返さない
+            message: { type: string }
+            retryable: { type: boolean }

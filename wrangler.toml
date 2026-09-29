@@ -1,0 +1,54 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "kintone-faq-search"
+main = "src/worker/index.ts"
+compatibility_date = "2026-09-01"
+
+# サーバー間APIのためCORSは設定しない。workers.dev を使わない場合は false にしてカスタムドメインを割り当てる。
+workers_dev = true
+
+[observability]
+enabled = true
+
+# 秘密情報は vars に書かない。`wrangler secret put` で登録する:
+#   FAQ_SEARCH_API_KEY / KINTONE_READ_API_TOKEN / EMBEDDING_API_KEY
+[vars]
+KINTONE_BASE_URL = "https://example.cybozu.com"
+KINTONE_APP_ID = "146"
+# KINTONE_GUEST_SPACE_ID = ""
+
+FIELD_CATEGORY = "category"
+FIELD_QUESTION = "question"
+FIELD_ANSWER = "answer"
+FIELD_EMBEDDING = "embedding"
+FIELD_EMBEDDING_SPEC = "embedding_spec"
+FIELD_EMBEDDING_HASH = "embedding_hash"
+
+EMBEDDING_PROVIDER = "openai"
+EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIMENSIONS = "1536"
+EMBEDDING_SPEC_ID = "openai/text-embedding-3-small/1536/faq-v1"
+# EMBEDDING_BASE_URL = "https://api.openai.com/v1"
+
+CACHE_TTL_SECONDS = "60"
+DEFAULT_LIMIT = "3"
+MAX_LIMIT = "5"
+# 2026-09-29 決定（text-embedding-3-small / faq-v1、アプリ146の79件、評価セット46問）。
+# 方針：取りこぼし重視。対象外の判断はFAQ本文を読むRealtime側に委ねる。
+# 46問全体：Top-3正解包含 91.7%、対象内no_match 5.6%、対象外の誤matched 40%、通常質問の過剰ambiguous 11.5%。
+# FAQ・モデル・テンプレートを変えたら `npm run eval:search` で再評価すること（仕様 8章・13章）。
+MIN_SIMILARITY = "0.42"
+AMBIGUITY_MARGIN = "0.02"
+SEARCH_TIMEOUT_MS = "2500"
+UPSTREAM_TIMEOUT_MS = "2000"
+MAX_SNAPSHOT_BYTES = "10485760"
+RATE_LIMIT_RETRY_AFTER_SECONDS = "60"
+
+# APIキー単位のレート制限（Workers Rate Limiting binding）。
+# 拠点単位・結果整合のため厳密な全拠点制限ではない。period は 10 または 60 のみ。
+[[ratelimits]]
+name = "SEARCH_RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60

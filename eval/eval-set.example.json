@@ -1,0 +1,16 @@
+[
+  { "id": "p01", "split": "tune", "type": "paraphrase", "query": "パスワードが分からなくなったので再設定したい", "expected_ids": ["1"], "expected_status": "matched" },
+  { "id": "p02", "split": "tune", "type": "paraphrase", "query": "月々の利用料はいくらかかりますか", "expected_ids": ["4"], "expected_status": "matched" },
+  { "id": "p03", "split": "tune", "type": "paraphrase", "query": "契約をやめたいのですが手続きを教えて", "expected_ids": ["5"], "expected_status": "matched" },
+  { "id": "p04", "split": "tune", "type": "paraphrase", "query": "録音はいつまで残りますか", "expected_ids": ["11"], "expected_status": "matched" },
+  { "id": "a01", "split": "tune", "type": "ambiguous", "query": "設定を変えたい", "expected_ids": ["2", "9", "10"], "expected_status": "ambiguous" },
+  { "id": "o01", "split": "tune", "type": "out_of_scope", "query": "明日の天気を教えて", "expected_ids": [], "expected_status": "no_match" },
+  { "id": "o02", "split": "tune", "type": "out_of_scope", "query": "近くのおすすめのラーメン屋は", "expected_ids": [], "expected_status": "no_match" },
+  { "id": "p05", "split": "eval", "type": "paraphrase", "query": "ログインできないのでパスワードを再発行したい", "expected_ids": ["1"], "expected_status": "matched" },
+  { "id": "p06", "split": "eval", "type": "paraphrase", "query": "同時通話は何件までできますか", "expected_ids": ["8"], "expected_status": "matched" },
+  { "id": "p07", "split": "eval", "type": "paraphrase", "query": "営業時間外にかかってきた電話はどうなりますか", "expected_ids": ["10"], "expected_status": "matched" },
+  { "id": "p08", "split": "eval", "type": "paraphrase", "query": "支払いを請求書払いにしたい", "category": "料金・契約", "expected_ids": ["6"], "expected_status": "matched" },
+  { "id": "a02", "split": "eval", "type": "ambiguous", "query": "メールアドレスについて", "expected_ids": ["1", "2"], "expected_status": "ambiguous" },
+  { "id": "o03", "split": "eval", "type": "out_of_scope", "query": "株価の見通しを知りたい", "expected_ids": [], "expected_status": "no_match" },
+  { "id": "o04", "split": "eval", "type": "out_of_scope", "query": "新幹線の予約方法", "expected_ids": [], "expected_status": "no_match" }
+]

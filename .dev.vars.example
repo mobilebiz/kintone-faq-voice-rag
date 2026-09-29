@@ -1,0 +1,21 @@
+# `wrangler dev` 用のローカル秘密情報・上書き値。.dev.vars にコピーして使う（コミットしない）。
+# wrangler.toml の [vars] より優先される。
+
+FAQ_SEARCH_API_KEY=change-me-local-search-key
+KINTONE_READ_API_TOKEN=your-kintone-read-only-token
+EMBEDDING_API_KEY=sk-your-openai-key
+
+# ---- 実接続 ----
+KINTONE_BASE_URL=https://your-subdomain.cybozu.com
+
+# ---- モック上流（npm run mock:upstream）で試す場合は以下に差し替える ----
+# KINTONE_BASE_URL=http://127.0.0.1:8788
+# KINTONE_APP_ID=146
+# KINTONE_READ_API_TOKEN=mock-token
+# EMBEDDING_BASE_URL=http://127.0.0.1:8788/v1
+# EMBEDDING_API_KEY=mock-key
+# EMBEDDING_MODEL=mock-hash-embedding
+# EMBEDDING_DIMENSIONS=256
+# EMBEDDING_SPEC_ID=openai/mock-hash-embedding/256/faq-v1
+# MIN_SIMILARITY=0.2
+# AMBIGUITY_MARGIN=0.02

@@ -1,0 +1,29 @@
+{
+  "name": "kintone-faq-voice-rag",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "kintone FAQ semantic search API on Cloudflare Workers (Realtime voice RAG backend)",
+  "engines": {
+    "node": ">=22.9.0"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "index:faq": "node --env-file-if-exists=.env --import tsx cli/index-faq.ts",
+    "check:deps": "node --env-file-if-exists=.env --import tsx cli/check-deps.ts",
+    "eval:search": "node --env-file-if-exists=.env --import tsx scripts/eval-search.ts",
+    "bench": "node --env-file-if-exists=.env --import tsx scripts/bench.ts",
+    "mock:upstream": "node --import tsx scripts/mock-upstream.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2",
+    "wrangler": "4.143.0"
+  }
+}

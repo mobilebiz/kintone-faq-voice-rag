@@ -1,0 +1,449 @@
+{
+  "info": {
+    "name": "kintone FAQ Search API",
+    "description": "kintone FAQ 意味検索API（Cloudflare Workers）の動作確認用。baseUrl / apiKey をコレクション変数または環境で設定する。ローカルは wrangler dev（http://127.0.0.1:8787）。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8787"
+    },
+    {
+      "key": "apiKey",
+      "value": "local-dev-key"
+    }
+  ],
+  "item": [
+    {
+      "name": "healthz",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/healthz",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "healthz"
+          ]
+        }
+      }
+    },
+    {
+      "name": "検索（基本）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Cache-Control: no-store\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"));",
+              "const j = pm.response.json();",
+              "pm.test(\"status は matched/ambiguous/no_match\", () => pm.expect([\"matched\",\"ambiguous\",\"no_match\"]).to.include(j.status));",
+              "pm.test(\"meta がある\", () => { pm.expect(j.meta).to.have.keys([\"cache\",\"snapshot_at\",\"embedding_spec\",\"degraded\",\"reason\",\"timings_ms\"]); });",
+              "if (j.status === \"no_match\") pm.test(\"no_match の results は空\", () => pm.expect(j.results).to.eql([]));",
+              "console.log(j.status, j.meta.reason, j.meta.cache, (j.results||[]).map(r => r.id + \":\" + r.score).join(\", \"));",
+              "pm.test(\"request_id を返す\", () => pm.expect(j.request_id).to.eql(\"req-example-001\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"ログインのパスワードを忘れたので再設定したい\",\n  \"limit\": 3,\n  \"request_id\": \"req-example-001\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/faq/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "faq",
+            "search"
+          ]
+        }
+      }
+    },
+    {
+      "name": "検索（カテゴリ指定）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Cache-Control: no-store\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"));",
+              "const j = pm.response.json();",
+              "pm.test(\"status は matched/ambiguous/no_match\", () => pm.expect([\"matched\",\"ambiguous\",\"no_match\"]).to.include(j.status));",
+              "pm.test(\"meta がある\", () => { pm.expect(j.meta).to.have.keys([\"cache\",\"snapshot_at\",\"embedding_spec\",\"degraded\",\"reason\",\"timings_ms\"]); });",
+              "if (j.status === \"no_match\") pm.test(\"no_match の results は空\", () => pm.expect(j.results).to.eql([]));",
+              "console.log(j.status, j.meta.reason, j.meta.cache, (j.results||[]).map(r => r.id + \":\" + r.score).join(\", \"));",
+              "(j.results||[]).forEach(r => pm.test(\"カテゴリ一致 \" + r.id, () => pm.expect(r.category).to.eql(\"料金・契約\")));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"月額料金はいくらですか\",\n  \"category\": \"料金・契約\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/faq/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "faq",
+            "search"
+          ]
+        }
+      }
+    },
+    {
+      "name": "検索（対象外の質問）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Cache-Control: no-store\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"));",
+              "const j = pm.response.json();",
+              "pm.test(\"status は matched/ambiguous/no_match\", () => pm.expect([\"matched\",\"ambiguous\",\"no_match\"]).to.include(j.status));",
+              "pm.test(\"meta がある\", () => { pm.expect(j.meta).to.have.keys([\"cache\",\"snapshot_at\",\"embedding_spec\",\"degraded\",\"reason\",\"timings_ms\"]); });",
+              "if (j.status === \"no_match\") pm.test(\"no_match の results は空\", () => pm.expect(j.results).to.eql([]));",
+              "console.log(j.status, j.meta.reason, j.meta.cache, (j.results||[]).map(r => r.id + \":\" + r.score).join(\", \"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"明日の天気を教えてください\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/faq/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "faq",
+            "search"
+          ]
+        }
+      }
+    },
+    {
+      "name": "検索（存在しないカテゴリ）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Cache-Control: no-store\", () => pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-store\"));",
+              "const j = pm.response.json();",
+              "pm.test(\"status は matched/ambiguous/no_match\", () => pm.expect([\"matched\",\"ambiguous\",\"no_match\"]).to.include(j.status));",
+              "pm.test(\"meta がある\", () => { pm.expect(j.meta).to.have.keys([\"cache\",\"snapshot_at\",\"embedding_spec\",\"degraded\",\"reason\",\"timings_ms\"]); });",
+              "if (j.status === \"no_match\") pm.test(\"no_match の results は空\", () => pm.expect(j.results).to.eql([]));",
+              "console.log(j.status, j.meta.reason, j.meta.cache, (j.results||[]).map(r => r.id + \":\" + r.score).join(\", \"));",
+              "pm.test(\"empty_category\", () => pm.expect(j.meta.reason).to.eql(\"empty_category\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"料金\",\n  \"category\": \"存在しないカテゴリ\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/faq/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "faq",
+            "search"
+          ]
+        }
+      }
+    },
+    {
+      "name": "エラー: APIキーなし（401）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+              "pm.test(\"error.code=UNAUTHORIZED\", () => pm.expect(pm.response.json().error.code).to.eql(\"UNAUTHORIZED\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"テスト\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/faq/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "faq",
+            "search"
+          ]
+        }
+      }
+    },
+    {
+      "name": "エラー: 未知のフィールド（400）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"error.code=INVALID_REQUEST\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_REQUEST\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"テスト\",\n  \"threshold\": 0.1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/faq/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "faq",
+            "search"
+          ]
+        }
+      }
+    },
+    {
+      "name": "エラー: limit 範囲外（400）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"error.code=INVALID_REQUEST\", () => pm.expect(pm.response.json().error.code).to.eql(\"INVALID_REQUEST\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": \"テスト\",\n  \"limit\": 10\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/faq/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "faq",
+            "search"
+          ]
+        }
+      }
+    },
+    {
+      "name": "エラー: JSON以外（415）",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 415\", () => pm.response.to.have.status(415));",
+              "pm.test(\"error.code=UNSUPPORTED_MEDIA_TYPE\", () => pm.expect(pm.response.json().error.code).to.eql(\"UNSUPPORTED_MEDIA_TYPE\"));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{apiKey}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "text/plain"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "query=テスト",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/faq/search",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "v1",
+            "faq",
+            "search"
+          ]
+        }
+      }
+    }
+  ]
+}
