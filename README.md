@@ -1,6 +1,6 @@
 # kintone FAQ 意味検索API（Cloudflare Workers）
 
-kintone の FAQ（アプリ 146：カテゴリ・質問・回答）を Embedding で意味検索し、**回答生成の根拠**（FAQ本文・出典ID・検索状態）を JSON で返すサーバー間 API です。仕様書 `kintone-faq-voice-rag-spec.md` に基づきます。
+kintone の FAQ（アプリ 146：カテゴリ・質問・回答）を Embedding で意味検索し、**回答生成の根拠**（FAQ本文・出典ID・検索状態）を JSON で返すサーバー間 API です。開発依頼用の仕様書（リポジトリ外で管理）に基づきます。本文中の「仕様 N章」はその仕様書の章番号です。
 
 - 検索API内で回答文は生成しません（生成は将来接続する通話側 Realtime モデルの役割。仕様 1章）。
 - 外部DB・Vectorize・KV は使いません。ベクトルの原本は kintone の文字列（複数行）フィールドです。
@@ -90,7 +90,7 @@ npm run check:deps                  # kintone / Embedding の疎通と有効ベ�
 npm run dev                         # wrangler dev（http://127.0.0.1:8787）→ Postman で確認
 ```
 
-`wrangler.toml` の `KINTONE_BASE_URL` は実際のドメインに書き換えるか、`.dev.vars` で上書きしてください。
+`KINTONE_BASE_URL` は `wrangler.toml` には書かず、ローカルでは `.dev.vars`、本番では Secret で設定します。
 
 ## 4. デプロイ
 
@@ -100,7 +100,8 @@ npm run dev                         # wrangler dev（http://127.0.0.1:8787）→
 npx wrangler secret put FAQ_SEARCH_API_KEY       # 通話サーバーにだけ渡す検索用キー（十分に長いランダム値）
 npx wrangler secret put KINTONE_READ_API_TOKEN   # 閲覧専用トークン
 npx wrangler secret put EMBEDDING_API_KEY        # OpenAI API キー
-# wrangler.toml の [vars]（KINTONE_BASE_URL、しきい値など）を確認してから
+npx wrangler secret put KINTONE_BASE_URL         # 例 https://xxx.cybozu.com（公開リポジトリに接続先を載せないため Secret にする）
+# wrangler.toml の [vars]（アプリID、しきい値など）を確認してから
 npm run deploy
 npm run check:deps -- --query "パスワードを忘れた"   # SEARCH_API_URL を .env に設定しておく
 ```
@@ -207,7 +208,8 @@ npm run typecheck
 | `FAQ_SEARCH_API_KEY` | Secret | 必須 | 検索APIキー |
 | `KINTONE_READ_API_TOKEN` | Secret | 必須 | 閲覧専用トークン |
 | `EMBEDDING_API_KEY` | Secret | 必須 | OpenAI キー |
-| `KINTONE_BASE_URL` / `KINTONE_APP_ID` | var | 必須 | 例 `https://xxx.cybozu.com` / `146` |
+| `KINTONE_BASE_URL` | Secret | 必須 | 例 `https://xxx.cybozu.com`（公開リポジトリに載せないため Secret） |
+| `KINTONE_APP_ID` | var | 必須 | 例 `146` |
 | `KINTONE_GUEST_SPACE_ID` | var | なし | ゲストスペースの場合のみ |
 | `FIELD_*` | var | 提案コード | `FIELD_CATEGORY` ほか |
 | `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL` / `EMBEDDING_DIMENSIONS` | var | 必須 | `openai` / `text-embedding-3-small` / `1536` |

@@ -9,10 +9,10 @@ workers_dev = true
 [observability]
 enabled = true
 
-# 秘密情報は vars に書かない。`wrangler secret put` で登録する:
-#   FAQ_SEARCH_API_KEY / KINTONE_READ_API_TOKEN / EMBEDDING_API_KEY
+# 秘密情報・環境固有の接続先は vars に書かない。`wrangler secret put` で登録する:
+#   FAQ_SEARCH_API_KEY / KINTONE_READ_API_TOKEN / EMBEDDING_API_KEY / KINTONE_BASE_URL
+# ローカル（wrangler dev）では .dev.vars に書く。
 [vars]
-KINTONE_BASE_URL = "https://example.cybozu.com"
 KINTONE_APP_ID = "146"
 # KINTONE_GUEST_SPACE_ID = ""
 
