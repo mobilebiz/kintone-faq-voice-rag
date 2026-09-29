@@ -1,4 +1,4 @@
-# kintone FAQ 意味検索API（Cloudflare Workers）
+# kintone-semantic-search：kintone FAQ のセマンティック検索API（Cloudflare Workers）
 
 kintone の FAQ（アプリ 146：カテゴリ・質問・回答）を Embedding で意味検索し、**回答生成の根拠**（FAQ本文・出典ID・検索状態）を JSON で返すサーバー間 API です。開発依頼用の仕様書（リポジトリ外で管理）に基づきます。本文中の「仕様 N章」はその仕様書の章番号です。
 
@@ -10,14 +10,14 @@ kintone の FAQ（アプリ 146：カテゴリ・質問・回答）を Embedding
 
 | 項目 | 値 |
 |---|---|
-| ベースURL | `https://kintone-faq-search.katsumi.workers.dev` |
+| ベースURL | `https://kintone-semantic-search.katsumi.workers.dev` |
 | 検索 | `POST /v1/faq/search`（`Authorization: Bearer <FAQ_SEARCH_API_KEY>` 必須） |
 | 生存確認 | `GET /healthz`（認証不要） |
 
 検索APIキーは通話接続サーバーにだけ渡すサーバー間用のキーで、このリポジトリには含めていません。キーがない、または不正なリクエストは `401 UNAUTHORIZED` になります。
 
 ```bash
-curl -s -X POST https://kintone-faq-search.katsumi.workers.dev/v1/faq/search \
+curl -s -X POST https://kintone-semantic-search.katsumi.workers.dev/v1/faq/search \
   -H "Authorization: Bearer $FAQ_SEARCH_API_KEY" -H 'Content-Type: application/json' \
   -d '{"query":"Teamsと連携するのにMicrosoft 365の有料プランは必要？","limit":3}'
 ```
@@ -85,7 +85,7 @@ npx wrangler dev --port 8787 \
   --var MIN_SIMILARITY:0.2 --var FAQ_SEARCH_API_KEY:local-dev-key
 ```
 
-Postman で `postman/kintone-faq-search.postman_collection.json` をインポートし（`baseUrl=http://127.0.0.1:8787`、`apiKey=local-dev-key` が既定値）、コレクションを実行します。curl なら:
+Postman で `postman/kintone-semantic-search.postman_collection.json` をインポートし（`baseUrl=http://127.0.0.1:8787`、`apiKey=local-dev-key` が既定値）、コレクションを実行します。curl なら:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8787/v1/faq/search \

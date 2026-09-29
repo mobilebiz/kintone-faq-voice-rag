@@ -1,5 +1,5 @@
 #:schema node_modules/wrangler/config-schema.json
-name = "kintone-faq-search"
+name = "kintone-semantic-search"
 main = "src/worker/index.ts"
 compatibility_date = "2026-09-01"
 

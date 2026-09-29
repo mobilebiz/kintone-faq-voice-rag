@@ -109,6 +109,7 @@ for (const c of levels) {
     all: summarize(ok),
     hit: summarize(hits),
     miss: summarize(misses),
+    samples,
   };
   results.push(row);
   console.log(

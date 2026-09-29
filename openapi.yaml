@@ -1,13 +1,13 @@
 openapi: 3.1.0
 info:
-  title: kintone FAQ Search API
+  title: kintone Semantic Search API
   version: 1.0.0
   description: |
     kintone の FAQ を意味検索し、回答生成の根拠（FAQ本文・出典・検索状態）を返すサーバー間API。
     完成した回答文は返さない（回答生成は通話側 Realtime モデルが行う）。
     すべての応答に `Cache-Control: no-store` を付与する。CORS は無効。
 servers:
-  - url: https://kintone-faq-search.{account}.workers.dev
+  - url: https://kintone-semantic-search.{account}.workers.dev
     variables:
       account:
         default: your-account

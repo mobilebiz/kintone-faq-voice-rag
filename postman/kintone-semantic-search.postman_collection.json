@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "kintone FAQ Search API",
+    "name": "kintone Semantic Search API",
     "description": "kintone FAQ 意味検索API（Cloudflare Workers）の動作確認用。baseUrl / apiKey をコレクション変数または環境で設定する。ローカルは wrangler dev（http://127.0.0.1:8787）。",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
