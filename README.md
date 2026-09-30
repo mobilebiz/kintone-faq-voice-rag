@@ -193,12 +193,13 @@ CLI 実行前の編集済みレコードは、ハッシュ不一致として検�
 ## 性能測定
 
 ```bash
-npm run bench -- --concurrency 1,5,10 --requests 100 --queries eval/eval-set.local.json
+npm run bench -- --concurrency 1,5,10 --requests 40 --queries eval/eval-set.local.json
 ```
 
 - **実際の通話サーバー配置先から**実行してください。日本のPCからの測定だけで評価しないでください。
 - ヒット／ミスは応答の `meta.cache` で分けて集計します。ミスは新規デプロイ直後や TTL 満了後に発生するため、ミス側が100件に届かない場合は追加測定してください。
-- レート制限（60回/分）が効くため、測定時は `wrangler.toml` の `[[ratelimits]]` の `limit` を一時的に上げるか、条件ごとに1分以上空けてください。
+- レート制限（60回/分）が効くため、1条件の件数は `--rate-limit`（既定 60）以下にしてください。超えると警告が出て、結果に 429 が混ざります。条件の間は `--gap` 秒（既定 60）自動で待ちます。件数を増やすときは `wrangler.toml` の `[[ratelimits]]` の `limit` を一時的に上げ、`--rate-limit` も合わせてください。
+- クライアント側の待ち時間 `--timeout` の既定は、呼び出し側と同じ 5,000ms です。サーバー側の `SEARCH_TIMEOUT_MS` より短くしないでください。
 - CPU時間は Cloudflare ダッシュボード（Workers Observability）または `npx wrangler tail` で確認します。
 - 結果は `docs/report-template.md` に沿ってまとめてください。
 
