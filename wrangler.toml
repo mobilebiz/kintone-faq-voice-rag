@@ -38,8 +38,12 @@ MAX_LIMIT = "5"
 # FAQ・モデル・テンプレートを変えたら `npm run eval:search` で再評価すること（仕様 8章・13章）。
 MIN_SIMILARITY = "0.42"
 AMBIGUITY_MARGIN = "0.02"
-SEARCH_TIMEOUT_MS = "2500"
-UPSTREAM_TIMEOUT_MS = "2000"
+# 2026-09-30 に 2500/2000 → 4000/3500。新しい isolate の初回は OpenAI Embedding への接続確立で
+# 2 秒前後かかり（bench の初回ミス 1,995ms、本番の初回 2,009ms）、2.5 秒では期限切れ (504) が出た。
+# 呼び出し側（Denwaban の汎用 Webhook 連携）のタイムアウトは 5,000ms なので、4,000ms なら 1 秒の余裕がある。
+# 呼び出し側のタイムアウトを変えるときは、この値がそれより十分小さいことを確かめること。
+SEARCH_TIMEOUT_MS = "4000"
+UPSTREAM_TIMEOUT_MS = "3500"
 MAX_SNAPSHOT_BYTES = "10485760"
 RATE_LIMIT_RETRY_AFTER_SECONDS = "60"
 
