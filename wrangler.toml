@@ -44,6 +44,11 @@ AMBIGUITY_MARGIN = "0.02"
 # 呼び出し側のタイムアウトを変えるときは、この値がそれより十分小さいことを確かめること。
 SEARCH_TIMEOUT_MS = "4000"
 UPSTREAM_TIMEOUT_MS = "3500"
+# 2026-10-01 追加。長時間アクセスがない後の初回で、検索文 Embedding が 3,500ms で打ち切られた（本番ログ
+# upstream_error=embedding:timeout、faq_load は 358ms、直後の2回目は 427ms）。期限を延ばす余地は小さいため、
+# 1,000ms 応答がなければ同じ Embedding をもう1本送り、先に返った方を使う。温まった状態の Embedding は
+# p95 でも 0.6 秒程度なので、通常はヘッジしない。0 で無効。
+EMBEDDING_HEDGE_MS = "1000"
 MAX_SNAPSHOT_BYTES = "10485760"
 RATE_LIMIT_RETRY_AFTER_SECONDS = "60"
 

@@ -163,6 +163,7 @@ CLI 実行前の編集済みレコードは、ハッシュ不一致として検�
 
 - 認証 → レート制限 → Content-Type → ボディ上限 → 入力検証 の順。不正キーは外部APIを呼ぶ前に 401。
 - 検索文 Embedding と FAQ 取得を並列に開始。全体期限 `SEARCH_TIMEOUT_MS`（`wrangler.toml` で 4,000ms）を共有し、各上流は `min(UPSTREAM_TIMEOUT_MS, 残り時間)` で打ち切り。片方が失敗したらもう片方も中止。検索パスでリトライはしません。
+- 検索文 Embedding は `EMBEDDING_HEDGE_MS`（`wrangler.toml` で 1,000ms）以内に応答がなければ、同じリクエストをもう1本並行して送り、先に成功した方を使います（ヘッジ）。新しい isolate の初回に接続確立だけが詰まる対策です。ヘッジ前の失敗（認証エラー・429 など）は二重に送りません。ログの `embedding_attempts`（1 または 2）と `embedding_winner`（`primary` / `hedge`）で発生状況を確認できます。
 - キャッシュは isolate 内メモリ。TTL 60秒、期限切れデータでは回答しない、同時取得は1つにまとめる、完成後に一括差し替え。isolate ごとに独立してミスするため、キャッシュなしでも動作します。
 - kintone 取得は `$id` 昇順の継続取得（500件/リクエスト）で全件。`category` はメモリ上で比較し、kintone クエリに利用者入力を埋め込みません。
 - 構造化ログ（`console.log` の JSON 1行）：request_id、trace_id、HTTP状態、検索status、各処理時間、キャッシュ状態、取得件数・有効件数・理由別の不正件数、上流エラー分類。検索文・FAQ本文・キーは出しません。
@@ -236,6 +237,7 @@ npm run typecheck
 | `DEFAULT_LIMIT` / `MAX_LIMIT` | var | 3 / 5 | `MAX_LIMIT` の上限は5 |
 | `MIN_SIMILARITY` / `AMBIGUITY_MARGIN` | var | **必須** | 評価で決定 |
 | `SEARCH_TIMEOUT_MS` / `UPSTREAM_TIMEOUT_MS` | var | 2500 / 2000 | `wrangler.toml` では **4000 / 3500**。新しい isolate の初回は Embedding の接続確立で 2 秒前後かかり、2.5 秒では 504 が出たため（2026-09-30）。呼び出し側のタイムアウトより十分小さくすること |
+| `EMBEDDING_HEDGE_MS` | var | 0（無効） | `wrangler.toml` では **1000**。長時間アクセスがない後の初回で Embedding が 3,500ms で打ち切られたため（2026-10-01）。通常時の Embedding より十分長く、`UPSTREAM_TIMEOUT_MS` より十分短くすること |
 | `MAX_SNAPSHOT_BYTES` | var | 10485760 | kintone 応答の累計上限 |
 | `RATE_LIMIT_RETRY_AFTER_SECONDS` | var | 60 | 429 の Retry-After |
 | `SEARCH_RATE_LIMITER` | binding | 60回/60秒 | `wrangler.toml` の `[[ratelimits]]` で変更 |

@@ -240,6 +240,48 @@ describe("異常系の分類", () => {
     expect(res.status).toBe(504);
   });
 
+  describe("Embedding のヘッジ（EMBEDDING_HEDGE_MS）", () => {
+    const hedgeEnv = testEnv({ EMBEDDING_HEDGE_MS: "100", UPSTREAM_TIMEOUT_MS: "2000" });
+    const lastLog = () => logs.at(-1)!;
+
+    it("1本目が詰まったら2本目の応答で返し、1本目は中止する", async () => {
+      mock.faults.embeddingDelaysMs = [5_000];
+      const t0 = Date.now();
+      const { res } = await search({ query: "月額料金" }, hedgeEnv);
+      expect(Date.now() - t0).toBeLessThan(1_000);
+      expect(res.status).toBe(200);
+      expect(mock.counts.embedding).toBe(1); // 中止した1本目は応答まで進まない
+      expect(lastLog()).toMatchObject({ embedding_attempts: 2, embedding_winner: "hedge" });
+    });
+
+    it("1本目が期限内に返ればヘッジしない", async () => {
+      const { res } = await search({ query: "月額料金" }, hedgeEnv);
+      expect(res.status).toBe(200);
+      expect(lastLog()).toMatchObject({ embedding_attempts: 1, embedding_winner: "primary" });
+    });
+
+    it("ヘッジ前の失敗（認証エラー）は二重に送らない", async () => {
+      const { res } = await search({ query: "x" }, testEnv({ EMBEDDING_HEDGE_MS: "100", EMBEDDING_API_KEY: "bad" }));
+      expect(res.status).toBe(502);
+      await new Promise((r) => setTimeout(r, 150));
+      expect(lastLog()).toMatchObject({ embedding_attempts: 1, upstream_error: "embedding:auth:401" });
+    });
+
+    it("2本とも詰まれば上流個別期限で 504", async () => {
+      mock.faults.embeddingDelayMs = 5_000;
+      const { res } = await search({ query: "x" }, testEnv({ EMBEDDING_HEDGE_MS: "50", UPSTREAM_TIMEOUT_MS: "200" }));
+      expect(res.status).toBe(504);
+      expect(lastLog()).toMatchObject({ embedding_attempts: 2, upstream_error: "embedding:timeout" });
+    });
+
+    it("既定（0）ではヘッジしない", async () => {
+      mock.faults.embeddingDelaysMs = [300];
+      const { res } = await search({ query: "x" });
+      expect(res.status).toBe(200);
+      expect(lastLog()).toMatchObject({ embedding_attempts: 1, embedding_winner: "primary" });
+    });
+  });
+
   it("取得失敗の後、次の検索で回復する", async () => {
     mock.faults.kintoneStatus = 503;
     expect((await search({ query: "月額料金" })).res.status).toBe(502);

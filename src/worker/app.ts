@@ -12,6 +12,7 @@ import { toUnitFloat64, validateVector } from "../shared/vector.ts";
 import { verifyApiKey } from "./auth.ts";
 import { SnapshotCache, type CacheStatus } from "./cache.ts";
 import { ConfigError, loadConfig, snapshotKey, type Env, type WorkerConfig } from "./config.ts";
+import { hedged } from "./hedge.ts";
 import { errorResponse, errorStatus, jsonResponse, type ErrorCode } from "./http.ts";
 import { isJsonContentType, MAX_BODY_BYTES, readBodyLimited, validateSearchBody } from "./request.ts";
 
@@ -182,13 +183,25 @@ export function createApp(deps: AppDeps = {}): App {
       const key = snapshotKey(cfg);
 
       // 検索文Embedding と FAQ取得を並列に開始する
+      // 新しい isolate の初回は接続確立が詰まることがあるため、応答が遅ければ2本目を並行して送る
       const embeddingTask = (async () => {
         const t = now();
         const signal = AbortSignal.any([deadline.signal, AbortSignal.timeout(Math.min(cfg.upstreamTimeoutMs, remaining()))]);
+        let attempts = 0;
         try {
-          return await createEmbedding(cfg.embedding, req.query, { fetch: doFetch, signal });
+          const r = await hedged(
+            (s) => {
+              attempts++;
+              return createEmbedding(cfg.embedding, req.query, { fetch: doFetch, signal: s });
+            },
+            cfg.embeddingHedgeMs,
+            signal,
+          );
+          logEntry.embedding_winner = r.winner;
+          return r.value;
         } finally {
           timings.embedding = now() - t;
+          logEntry.embedding_attempts = attempts;
         }
       })();
 

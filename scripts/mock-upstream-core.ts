@@ -18,6 +18,8 @@ export interface MockFaults {
   kintoneDelayMs?: number;
   embeddingStatus?: number;
   embeddingDelayMs?: number;
+  /** Embedding 呼び出しごとの遅延（先頭から1件ずつ消費。尽きたら embeddingDelayMs） */
+  embeddingDelaysMs?: number[];
   /** Embedding応答を差し替える（不正ベクトル検証用） */
   embeddingOverride?: unknown;
   /** 指定IDの次回PUTでrevision競合を返す回数 */
@@ -180,7 +182,8 @@ export class MockUpstream {
   }
 
   private async handleEmbedding(req: Request): Promise<Response> {
-    if (this.faults.embeddingDelayMs) await delay(this.faults.embeddingDelayMs, req.signal);
+    const delayMs = this.faults.embeddingDelaysMs?.shift() ?? this.faults.embeddingDelayMs;
+    if (delayMs) await delay(delayMs, req.signal);
     if (req.headers.get("authorization") !== `Bearer ${this.embeddingKey}`) {
       return json(401, { error: { message: "Incorrect API key provided", type: "invalid_request_error", code: "invalid_api_key" } });
     }

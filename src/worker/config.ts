@@ -32,6 +32,7 @@ export interface Env {
   AMBIGUITY_MARGIN?: string;
   SEARCH_TIMEOUT_MS?: string;
   UPSTREAM_TIMEOUT_MS?: string;
+  EMBEDDING_HEDGE_MS?: string;
   MAX_SNAPSHOT_BYTES?: string;
   RATE_LIMIT_RETRY_AFTER_SECONDS?: string;
   // Bindings
@@ -52,6 +53,8 @@ export interface WorkerConfig {
   ambiguityMargin: number;
   searchTimeoutMs: number;
   upstreamTimeoutMs: number;
+  /** 検索文 Embedding のヘッジ開始までの待ち時間。0 でヘッジしない */
+  embeddingHedgeMs: number;
   maxSnapshotBytes: number;
   rateLimitRetryAfterSeconds: number;
 }
@@ -116,6 +119,7 @@ export function loadConfig(env: Env): WorkerConfig {
   }
   const searchTimeoutMs = num("SEARCH_TIMEOUT_MS", 2500, posInt);
   const upstreamTimeoutMs = num("UPSTREAM_TIMEOUT_MS", 2000, posInt);
+  const embeddingHedgeMs = num("EMBEDDING_HEDGE_MS", 0, (n) => Number.isInteger(n) && n >= 0);
 
   const cfg: WorkerConfig = {
     apiKey: str("FAQ_SEARCH_API_KEY"),
@@ -141,6 +145,7 @@ export function loadConfig(env: Env): WorkerConfig {
     ambiguityMargin: num("AMBIGUITY_MARGIN", undefined, (n) => n >= 0 && n <= 2),
     searchTimeoutMs,
     upstreamTimeoutMs,
+    embeddingHedgeMs,
     maxSnapshotBytes: num("MAX_SNAPSHOT_BYTES", 10 * 1024 * 1024, posInt),
     rateLimitRetryAfterSeconds: num("RATE_LIMIT_RETRY_AFTER_SECONDS", 60, posInt),
   };
